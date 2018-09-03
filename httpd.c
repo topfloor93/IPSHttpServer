@@ -169,7 +169,11 @@ void respond(int n)
         t2 = request_header("Content-Length"); // and the related header if there is  
         payload = t;
         payload_size = t2 ? atol(t2) : (rcvd-(t-buf));
-        printf("%s\n", payload);
+        while (payload < *payload + payload_size)
+        {
+            printf("%s\n",payload);
+            payload++;
+        }
 
         // bind clientfd to stdout, making it easier to write
         clientfd = clients[n];
