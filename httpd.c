@@ -169,6 +169,17 @@ void respond(int n)
         t2 = request_header("Content-Length"); // and the related header if there is  
         payload = t;
         payload_size = t2 ? atol(t2) : (rcvd-(t-buf));
+        while(t < (*t+payload_size)) {
+            char *k,*v,*f;
+            k = strtok(NULL, "\r\n: \t"); if (!k) break;
+            v = strtok(NULL, "\r\n");     while(*v && *v==' ') v++;
+            t->key  = k;
+            t->value = v;
+            t++;
+            fprintf(stderr, "[B] %s: %s\n", k, v);
+            f = v + 1 + strlen(v);
+            if (f[1] == '\r' && f[2] == '\n') break;
+        }
 
         // bind clientfd to stdout, making it easier to write
         clientfd = clients[n];

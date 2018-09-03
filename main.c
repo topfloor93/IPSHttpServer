@@ -20,7 +20,7 @@ void route()
     {
         printf("HTTP/1.1 200 OK\r\n\r\n");
         printf("Wow, seems that you POSTed %d bytes. \r\n", payload_size);
-        printf("you sent %s\n", payload);
+        //printf("you sent %s\n", payload);
         printf("Fetch the data using `payload` variable.");
     }
 
@@ -28,7 +28,7 @@ void route()
     {
         printf("HTTP/1.1 200 OK\r\n\r\n");
         printf("Wow, seems that you POSTed %d bytes. \r\n", payload_size);
-        printf("you sent %s\n", payload);
+        //printf("you sent %s\n", payload);
         printf("Fetch the data using `payload` variable.");
     }
 
