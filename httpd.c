@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <pthread.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
@@ -18,12 +19,16 @@ static int listenfd, clients[CONNMAX];
 static void error(char *);
 static void startServer(const char *);
 static void respond(int);
+static void *test_data_logger(void *data);
 
 typedef struct { char *name, *value; } header_t;
 static header_t reqhdr[17] = { {"\0", "\0"} };
 static int clientfd;
+static FILE *log_file;
 
 static char *buf;
+pthread_mutex_t count_mutex;
+long long count;
 
 void serve_forever(const char *PORT)
 {
@@ -31,18 +36,24 @@ void serve_forever(const char *PORT)
     socklen_t addrlen;
     char c;
 
+    void *in_q = NULL;
     int slot=0;
+    pthread_t thread_id;
 
     printf(
             "Server started %shttp://127.0.0.1:%s%s\n",
             "\033[92m",PORT,"\033[0m"
     );
 
+    /**>startIPS()*/
+    
     // Setting all elements to -1: signifies there is no client connected
     int i;
     for (i=0; i<CONNMAX; i++)
         clients[i]=-1;
     startServer(PORT);
+
+    /**> getIPSQueue(&in_q)*/
 
     // Ignore SIGCHLD to avoid zombie threads
     signal(SIGCHLD,SIG_IGN);
@@ -175,6 +186,17 @@ void respond(int n)
             payload++;
         }
 
+        // if(false){
+        //     PushPacketQueue(payload + getpid());
+           
+        //     while (true) {
+        //         sleep(1);
+        //         if (interrupt){
+        //             break;
+        //         }
+        //     }
+        //}
+	
         // bind clientfd to stdout, making it easier to write
         clientfd = clients[n];
         dup2(clientfd, STDOUT_FILENO);
@@ -187,10 +209,21 @@ void respond(int n)
         fflush(stdout);
         shutdown(STDOUT_FILENO, SHUT_WR);
         close(STDOUT_FILENO);
+
+        //pthread_mutex_lock(&count_mutex);
+        //test_data_logger(payload);
+        //pthread_mutex_unlock(&count_mutex);
     }
 
     //Closing SOCKET
     shutdown(clientfd, SHUT_RDWR);         //All further send and recieve operations are DISABLED...
     close(clientfd);
     clients[n]=-1;
+}
+
+
+void *test_data_logger(void *data){
+    log_file = fopen("test_logfile.txt","a");
+    fputs((char*)data, log_file);
+    fclose(log_file);
 }
