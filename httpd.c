@@ -207,7 +207,7 @@ void respond(int n)
 
         // call router
         route();
-        printf("%s\n","aa" );
+        printf("%s\n","HTTP 200 OK");
         // tidy up
         fflush(stdout);
         shutdown(STDOUT_FILENO, SHUT_WR);
