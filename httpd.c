@@ -22,6 +22,7 @@ static void respond(int);
 static void *test_data_logger(void *data);
 
 typedef struct { char *name, *value; } header_t;
+
 static header_t reqhdr[17] = { {"\0", "\0"} };
 static int clientfd;
 static FILE *log_file;
@@ -133,6 +134,8 @@ char *request_header(const char* name)
     return NULL;
 }
 
+
+
 //client connection
 void respond(int n)
 {
@@ -166,7 +169,7 @@ void respond(int n)
         header_t *h = reqhdr;
         char *t, *t2;
         while(h < reqhdr+16) {
-            char *k,*v,*t;
+            char *k,*v;
             k = strtok(NULL, "\r\n: \t"); if (!k) break;
             v = strtok(NULL, "\r\n");     while(*v && *v==' ') v++;
             h->name  = k;
@@ -174,12 +177,17 @@ void respond(int n)
             h++;
             fprintf(stderr, "[H] %s: %s\n", k, v);
             t = v + 1 + strlen(v);
-            if (t[1] == '\r' && t[2] == '\n') break;
+            if (t[1] == '\r' && t[2] == '\n'){
+            //    t = strtok(NULL, "\r\n: \t\r\n: \t");
+                break;
+            }
         }
         t++; // now the *t shall be the beginning of user payload
         t2 = request_header("Content-Length"); // and the related header if there is  
         payload = t;
         payload_size = t2 ? atol(t2) : (rcvd-(t-buf));
+
+        fprintf(stderr, "%s", payload);
         
         // if(false){
         //     PushPacketQueue(payload + getpid());
@@ -199,15 +207,15 @@ void respond(int n)
 
         // call router
         route();
-
+        printf("%s\n","aa" );
         // tidy up
         fflush(stdout);
         shutdown(STDOUT_FILENO, SHUT_WR);
         close(STDOUT_FILENO);
 
-        //pthread_mutex_lock(&count_mutex);
-        //test_data_logger(payload);
-        //pthread_mutex_unlock(&count_mutex);
+        pthread_mutex_lock(&count_mutex);
+        test_data_logger(payload);
+        pthread_mutex_unlock(&count_mutex);
     }
 
     //Closing SOCKET
