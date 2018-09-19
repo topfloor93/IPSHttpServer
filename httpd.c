@@ -180,12 +180,7 @@ void respond(int n)
         t2 = request_header("Content-Length"); // and the related header if there is  
         payload = t;
         payload_size = t2 ? atol(t2) : (rcvd-(t-buf));
-        while (*payload < *payload + payload_size)
-        {
-            printf("%s\n",payload);
-            payload++;
-        }
-
+        
         // if(false){
         //     PushPacketQueue(payload + getpid());
            
