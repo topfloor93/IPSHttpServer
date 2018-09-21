@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -12,14 +11,16 @@
 #include <netdb.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <unistd.h>
 
-#define CONNMAX 1000
+#define CONNMAX 10000
 
-static int listenfd, clients[CONNMAX];
+static int listenfd, clients[CONNMAX],conn;
 static void error(char *);
 static void startServer(const char *);
 static void respond(int);
 static void *test_data_logger(void *data);
+
 
 typedef struct { char *name, *value; } header_t;
 
@@ -30,6 +31,8 @@ static FILE *log_file;
 static char *buf;
 pthread_mutex_t count_mutex;
 long long count;
+
+
 
 void serve_forever(const char *PORT)
 {
@@ -50,8 +53,8 @@ void serve_forever(const char *PORT)
     
     // Setting all elements to -1: signifies there is no client connected
     int i;
-    for (i=0; i<CONNMAX; i++)
-        clients[i]=-1;
+    //for (i=0; i<CONNMAX; i++)
+    //    clients[i]=-1;
     startServer(PORT);
 
     /**> getIPSQueue(&in_q)*/
@@ -63,22 +66,24 @@ void serve_forever(const char *PORT)
     while (1)
     {
         addrlen = sizeof(clientaddr);
-        clients[slot] = accept (listenfd, (struct sockaddr *) &clientaddr, &addrlen);
-
-        if (clients[slot]<0)
-        {
+        //clients[slot] = accept (listenfd, (struct sockaddr *) &clientaddr, &addrlen), sizeof(int));
+	conn = accept (listenfd, (struct sockaddr *) &clientaddr, &addrlen);
+        //if (clients[slot]<0)
+	if (conn < 0 )        
+	{
             perror("accept() error");
         }
         else
         {
             if ( fork()==0 )
             {
-                respond(slot);
+                respond(conn);
+		//respond(slot);
                 exit(0);
             }
         }
 
-        while (clients[slot]!=-1) slot = (slot+1)%CONNMAX;
+        //while (clients[slot]!=-1) slot = (slot+1)%CONNMAX;
     }
 }
 
@@ -143,7 +148,8 @@ void respond(int n)
     char *ptr;
 
     buf = malloc(65535);
-    rcvd=recv(clients[n], buf, 65535, 0);
+    //rcvd=recv(clients[n], buf, 65535, 0);
+    rcvd=recv(n, buf, 65535, 0);
 
     if (rcvd<0)    // receive error
         fprintf(stderr,("recv() error\n"));
@@ -186,8 +192,9 @@ void respond(int n)
         t2 = request_header("Content-Length"); // and the related header if there is  
         payload = t;
         payload_size = t2 ? atol(t2) : (rcvd-(t-buf));
-
-        fprintf(stderr, "%s", payload);
+	
+	fprintf(stderr, "%d\n", n);
+        fprintf(stderr, "%s\n", payload);
         
         // if(false){
         //     PushPacketQueue(payload + getpid());
@@ -201,8 +208,9 @@ void respond(int n)
         //}
 	
         // bind clientfd to stdout, making it easier to write
-        clientfd = clients[n];
-        dup2(clientfd, STDOUT_FILENO);
+        //clientfd = clients[n];
+	clientfd = n;        
+	dup2(clientfd, STDOUT_FILENO);
         close(clientfd);
 
         // call router
@@ -221,7 +229,7 @@ void respond(int n)
     //Closing SOCKET
     shutdown(clientfd, SHUT_RDWR);         //All further send and recieve operations are DISABLED...
     close(clientfd);
-    clients[n]=-1;
+   
 }
 
 
