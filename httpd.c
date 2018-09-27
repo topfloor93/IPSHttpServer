@@ -193,8 +193,7 @@ void respond(int n)
         payload = t;
         payload_size = t2 ? atol(t2) : (rcvd-(t-buf));
 	
-	fprintf(stderr, "%d\n", n);
-        fprintf(stderr, "%s\n", payload);
+        fprintf(stderr, "%s\n\n\n", payload);
         
         // if(false){
         //     PushPacketQueue(payload + getpid());
@@ -209,8 +208,8 @@ void respond(int n)
 	
         // bind clientfd to stdout, making it easier to write
         //clientfd = clients[n];
-	clientfd = n;        
-	dup2(clientfd, STDOUT_FILENO);
+	    clientfd = n;        
+	    dup2(clientfd, STDOUT_FILENO);
         close(clientfd);
 
         // call router
