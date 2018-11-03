@@ -12,17 +12,17 @@ void route()
 
     ROUTE_GET("/ips/logs")
     {
-        printf("HTTP/1.1 200 OK\r\n\r\n");
+        printf("%s\n", file_binary_loader());
     }
 
     ROUTE_POST("/ips")
     {
-        printf("HTTP/1.1 200 OK\r\n\r\n");
+
     }
 
     ROUTE_POST("/ips/rules")
     {
-        printf("HTTP/1.1 200 OK\r\n\r\n");
+
     }
 
     ROUTE_END()

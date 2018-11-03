@@ -15,12 +15,11 @@
 
 #define CONNMAX 10000
 
-static int listenfd, clients[CONNMAX],conn;
+static int listenfd, conn;
 static void error(char *);
 static void startServer(const char *);
 static void respond(int);
 static void *test_data_logger(void *data);
-
 
 typedef struct { char *name, *value; } header_t;
 
@@ -53,8 +52,6 @@ void serve_forever(const char *PORT)
     
     // Setting all elements to -1: signifies there is no client connected
     int i;
-    //for (i=0; i<CONNMAX; i++)
-    //    clients[i]=-1;
     startServer(PORT);
 
     /**> getIPSQueue(&in_q)*/
@@ -66,11 +63,9 @@ void serve_forever(const char *PORT)
     while (1)
     {
         addrlen = sizeof(clientaddr);
-        //clients[slot] = accept (listenfd, (struct sockaddr *) &clientaddr, &addrlen), sizeof(int));
-	conn = accept (listenfd, (struct sockaddr *) &clientaddr, &addrlen);
-        //if (clients[slot]<0)
-	if (conn < 0 )        
-	{
+    	conn = accept (listenfd, (struct sockaddr *) &clientaddr, &addrlen);
+    	if (conn < 0 )
+	    {
             perror("accept() error");
         }
         else
@@ -78,12 +73,9 @@ void serve_forever(const char *PORT)
             if ( fork()==0 )
             {
                 respond(conn);
-		//respond(slot);
                 exit(0);
             }
         }
-
-        //while (clients[slot]!=-1) slot = (slot+1)%CONNMAX;
     }
 }
 
@@ -142,14 +134,13 @@ char *request_header(const char* name)
 
 
 //client connection
-void respond(int n)
+void respond(int conn)
 {
     int rcvd, fd, bytes_read;
     char *ptr;
 
     buf = malloc(65535);
-    //rcvd=recv(clients[n], buf, 65535, 0);
-    rcvd=recv(n, buf, 65535, 0);
+    rcvd=recv(conn, buf, 65535, 0);
 
     if (rcvd<0)    // receive error
         fprintf(stderr,("recv() error\n"));
@@ -194,28 +185,13 @@ void respond(int n)
         payload_size = t2 ? atol(t2) : (rcvd-(t-buf));
 	
         fprintf(stderr, "%s\n\n\n", payload);
-        
-        // if(false){
-        //     PushPacketQueue(payload + getpid());
-           
-        //     while (true) {
-        //         sleep(1);
-        //         if (interrupt){
-        //             break;
-        //         }
-        //     }
-        //}
-	
-        // bind clientfd to stdout, making it easier to write
-        //clientfd = clients[n];
-	    clientfd = n;        
-	    dup2(clientfd, STDOUT_FILENO);
-        close(clientfd);
+
+	    dup2(conn, STDOUT_FILENO);
+        close(conn);
 
         // call router
         route();
-        printf("%s\n","HTTP 200 OK");
-        // tidy up
+
         fflush(stdout);
         shutdown(STDOUT_FILENO, SHUT_WR);
         close(STDOUT_FILENO);
@@ -226,14 +202,46 @@ void respond(int n)
     }
 
     //Closing SOCKET
-    shutdown(clientfd, SHUT_RDWR);         //All further send and recieve operations are DISABLED...
-    close(clientfd);
+    shutdown(conn, SHUT_RDWR);         //All further send and recieve operations are DISABLED...
+    close(conn);
    
 }
 
 
+char* file_binary_loader(){
+    FILE *file;
+    char *buffer;
+    char *reply;
+    int fileLen;
+
+    file = fopen("logfile.txt", "rb");
+    if (!file)
+    {
+        return;
+    }
+
+    fseek(file, 0, SEEK_END);
+    fileLen=ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    buffer=(char *)malloc(fileLen+1);
+    if (!buffer)
+    {
+        fclose(file);
+        return;
+    }
+
+    fread(buffer, fileLen, 1, file);
+    fclose(file);
+
+    reply = (char*)malloc(fileLen);
+    memcpy(reply, buffer, fileLen);
+
+    return reply;
+}
+
 void *test_data_logger(void *data){
-    log_file = fopen("test_logfile.txt","a");
+    log_file = fopen("logfile.txt","a");
     fputs((char*)data, log_file);
     fclose(log_file);
 }

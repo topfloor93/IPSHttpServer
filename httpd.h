@@ -19,7 +19,7 @@ char    *payload;     // for POST
 int      payload_size;
 
 char *request_header(const char* name);
-
+char* file_binary_loader();
 // user shall implement this function
 
 void route();
