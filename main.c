@@ -6,13 +6,13 @@ int main(int c, char** v)
     return 0;
 }
 
-void route()
+void route(int conn)
 {
     ROUTE_START()
 
     ROUTE_GET("/ips/logs")
     {
-        printf("%s\n", file_binary_loader());
+        printf("%s\r\n\r\n", file_binary_loader());
     }
 
     ROUTE_POST("/ips")
@@ -22,7 +22,9 @@ void route()
 
     ROUTE_POST("/ips/rules")
     {
-
+        if(!rule_update(conn)){
+            printf("HTTP/1.1 400 BAD REQUEST\r\n\r\n");
+        }
     }
 
     ROUTE_END()

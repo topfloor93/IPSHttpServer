@@ -1,6 +1,9 @@
 #ifndef _HTTPD_H___
 #define _HTTPD_H___
 
+#define TRUE 1
+#define FALSE 0
+
 #include <string.h>
 #include <stdio.h>
 
@@ -20,9 +23,10 @@ int      payload_size;
 
 char *request_header(const char* name);
 char* file_binary_loader();
+int rule_update(int conn);
 // user shall implement this function
 
-void route();
+void route(int conn);
 
 // some interesting macro for `route()`
 #define ROUTE_START()       if (0) {

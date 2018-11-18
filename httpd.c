@@ -139,7 +139,7 @@ void respond(int conn)
     int rcvd, fd, bytes_read;
     char *ptr;
 
-    buf = malloc(65535);
+    buf = colloc(65535, 0);
     rcvd=recv(conn, buf, 65535, 0);
 
     if (rcvd<0)    // receive error
@@ -190,7 +190,7 @@ void respond(int conn)
         close(conn);
 
         // call router
-        route();
+        route(conn);
 
         fflush(stdout);
         shutdown(STDOUT_FILENO, SHUT_WR);
@@ -204,6 +204,7 @@ void respond(int conn)
     //Closing SOCKET
     shutdown(conn, SHUT_RDWR);         //All further send and recieve operations are DISABLED...
     close(conn);
+    free(buf);
    
 }
 
@@ -224,7 +225,7 @@ char* file_binary_loader(){
     fileLen=ftell(file);
     fseek(file, 0, SEEK_SET);
 
-    buffer=(char *)malloc(fileLen+1);
+    buffer=(char *)colloc(fileLen+1, 0);
     if (!buffer)
     {
         fclose(file);
@@ -234,10 +235,40 @@ char* file_binary_loader(){
     fread(buffer, fileLen, 1, file);
     fclose(file);
 
-    reply = (char*)malloc(fileLen);
+    reply = (char*)colloc(fileLen, 0);
     memcpy(reply, buffer, fileLen);
+    free(buffer);
 
     return reply;
+}
+
+
+int rule_update(int conn){
+    File *file;
+    char*buffer;
+
+    buffer = colloc(payload_size, 0);//+1 ?
+    buffer[payload_size] = '\0';
+
+    file_name = strtok(buffer,  " \t\r\n");
+    file_size = strtok(NULL, "\t");
+
+    //hash(payload);
+    //printf("%s\r\n\r\n", hash);
+    buffer = colloc(file_size+1, 0);
+
+    rcvd=recv(conn, buffer, file_size, 0);
+
+    if (rcvd<=0)
+        return FALSE;
+    else
+    {
+        file = fopen(file_name, "wb");
+        fwrite(buffer, file_size, 1, file);
+        fclose(file);
+        free(buffer);
+    }
+    return TRUE;
 }
 
 void *test_data_logger(void *data){
