@@ -12,6 +12,9 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <unistd.h>
+#include <time.h>
+#include <sys/time.h>
+#include <math.h>
 
 #define CONNMAX 10000
 
@@ -20,6 +23,7 @@ static void error(char *);
 static void startServer(const char *);
 static void respond(int);
 static void *test_data_logger(void *data);
+static const char * timelog();
 
 typedef struct { char *name, *value; } header_t;
 
@@ -138,9 +142,11 @@ void respond(int conn)
 {
     int rcvd, fd, bytes_read;
     char *ptr;
-
-    buf = colloc(65535, 0);
+    buf = malloc(65535);
     rcvd=recv(conn, buf, 65535, 0);
+    const char *rt = timelog();
+    char *ff = " > ";
+    char *pl;
 
     if (rcvd<0)    // receive error
         fprintf(stderr,("recv() error\n"));
@@ -154,7 +160,8 @@ void respond(int conn)
         uri    = strtok(NULL, " \t");
         prot   = strtok(NULL, " \t\r\n");
 
-        fprintf(stderr, "\x1b[32m + [%s] %s\x1b[0m\n", method, uri);
+        fprintf(stderr, "\x1b[32m + [%s] %s\x1b[0m", method, uri);
+	fprintf(stderr, "\x1b[32m >> %s\x1b[0m\n", rt); 
 
         if (qs = strchr(uri, '?'))
         {
@@ -181,23 +188,26 @@ void respond(int conn)
         }
         t++; // now the *t shall be the beginning of user payload
         t2 = request_header("Content-Length"); // and the related header if there is  
-        payload = t;
+        payload = t+2;
         payload_size = t2 ? atol(t2) : (rcvd-(t-buf));
 	
-        fprintf(stderr, "%s\n\n\n", payload);
-
-	    dup2(conn, STDOUT_FILENO);
-        close(conn);
-
-        // call router
-        route(conn);
-
+        fprintf(stderr, "[B] %s\n\n", payload);
+	
+	if (dup2(conn, STDOUT_FILENO)) {
+	
+            route();
+        }
         fflush(stdout);
         shutdown(STDOUT_FILENO, SHUT_WR);
         close(STDOUT_FILENO);
+	
+        pl = malloc(strlen(rt) + strlen(ff) + strlen(payload) + 1);
+        strcpy(pl, rt);
+        strcat(pl, ff);
+        strcat(pl, payload);
 
         pthread_mutex_lock(&count_mutex);
-        test_data_logger(payload);
+        test_data_logger(pl);
         pthread_mutex_unlock(&count_mutex);
     }
 
@@ -208,7 +218,7 @@ void respond(int conn)
    
 }
 
-
+/**
 char* file_binary_loader(){
     FILE *file;
     char *buffer;
@@ -270,9 +280,43 @@ int rule_update(int conn){
     }
     return TRUE;
 }
-
+*/
 void *test_data_logger(void *data){
     log_file = fopen("logfile.txt","a");
     fputs((char*)data, log_file);
+    fputs("\n", log_file);
     fclose(log_file);
+}
+
+char *response_ips(int flag){
+    if(flag == 1){
+        return "200 OK";
+    } else {
+        return "404 Forbidden";
+    }
+}
+
+const char * timelog() {
+    static char buff[30];
+    char usec_buf[6];
+    int millsec;
+    struct tm *sTm;
+    struct timeval tv;
+
+    gettimeofday(&tv, NULL);
+    
+    millsec = (int)(tv.tv_usec/1000.0);
+    if (millsec>=1000) {
+        millsec -=1000;
+        tv.tv_sec++;    
+    }
+
+    sTm = localtime(&tv.tv_sec);
+    
+    strftime(buff, sizeof(buff), "%Y-%m-%d %H:%M:%S", sTm); 
+    strcat(buff, ".");
+    sprintf(usec_buf, "%03d",millsec);
+    strcat(buff, usec_buf);
+    
+    return buff;
 }
