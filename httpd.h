@@ -20,9 +20,12 @@ char    *method,    // "GET" or "POST"
 
 char    *payload;     // for POST
 int      payload_size;
+int	 flag;
 
 char *request_header(const char* name);
 char *response_ips(int flag);
+void *request_ips();
+
 //char* file_binary_loader();
 //int rule_update(int conn);
 // user shall implement this function

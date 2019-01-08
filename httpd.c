@@ -4,17 +4,18 @@
 #include <string.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
 #include <netdb.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <unistd.h>
 #include <time.h>
-#include <sys/time.h>
 #include <math.h>
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <arpa/inet.h>
 
 #define CONNMAX 10000
 
@@ -22,7 +23,9 @@ static int listenfd, conn;
 static void error(char *);
 static void startServer(const char *);
 static void respond(int);
-static void *test_data_logger(void *data);
+static void logger(void *data);
+static void pipe_writer(void *data);
+static int pipe_reader();
 static const char * timelog();
 
 typedef struct { char *name, *value; } header_t;
@@ -33,15 +36,20 @@ static FILE *log_file;
 
 static char *buf;
 pthread_mutex_t count_mutex;
+pthread_mutex_t packet_in_queue_mutex;
 long long count;
 
-
+static char *httplog;
+static int packet_in_queue_fd;
+static const char *pakcet_in_queue = "/tmp/packet_in_queue";
+static char *pid;
 
 void serve_forever(const char *PORT)
 {
     struct sockaddr_in clientaddr;
     socklen_t addrlen;
     char c;
+    char temp[0];
 
     void *in_q = NULL;
     int slot=0;
@@ -52,13 +60,11 @@ void serve_forever(const char *PORT)
             "\033[92m",PORT,"\033[0m"
     );
 
-    /**>startIPS()*/
     
     // Setting all elements to -1: signifies there is no client connected
     int i;
     startServer(PORT);
-
-    /**> getIPSQueue(&in_q)*/
+    mkfifo(pakcet_in_queue, 0666);
 
     // Ignore SIGCHLD to avoid zombie threads
     signal(SIGCHLD,SIG_IGN);
@@ -76,6 +82,8 @@ void serve_forever(const char *PORT)
         {
             if ( fork()==0 )
             {
+		sprintf(temp,"%d", getpid());
+		pid = temp;
                 respond(conn);
                 exit(0);
             }
@@ -121,6 +129,7 @@ void startServer(const char *port)
         perror("listen() error");
         exit(1);
     }
+
 }
 
 
@@ -135,18 +144,36 @@ char *request_header(const char* name)
     return NULL;
 }
 
+void *request_ips() {
+    
+    pipe_writer(httplog);
+	
 
+    if (pipe_reader()==0) {
+        return 0;
+    }
+}
+
+char *response_ips(int flag) {
+    if(flag == 1){
+        return "200 OK";
+    } else {
+        return "404 Forbidden";
+    }
+}
 
 //client connection
 void respond(int conn)
 {
-    int rcvd, fd, bytes_read;
+    int rcvd, bytes_read;
     char *ptr;
     buf = malloc(65535);
     rcvd=recv(conn, buf, 65535, 0);
-    const char *rt = timelog();
+    char *action_log;
     char *ff = " > ";
-    char *pl;
+    const char *rt = timelog();
+    char *action1 = " >> \"ACCEPT\"";
+    char *action2 = " >> \"DENY\"";
 
     if (rcvd<0)    // receive error
         fprintf(stderr,("recv() error\n"));
@@ -193,26 +220,33 @@ void respond(int conn)
 	
         fprintf(stderr, "[B] %s\n\n", payload);
 	
-	if (dup2(conn, STDOUT_FILENO)) {
+        httplog = malloc(strlen(rt) + strlen(ff) + strlen(payload) + 1);
+        strcpy(httplog, rt);
+        strcat(httplog, ff);
+        strcat(httplog, payload);
 	
+        if (dup2(conn, STDOUT_FILENO)) {
             route();
         }
+
         fflush(stdout);
         shutdown(STDOUT_FILENO, SHUT_WR);
         close(STDOUT_FILENO);
-	
-        pl = malloc(strlen(rt) + strlen(ff) + strlen(payload) + 1);
-        strcpy(pl, rt);
-        strcat(pl, ff);
-        strcat(pl, payload);
 
-        pthread_mutex_lock(&count_mutex);
-        test_data_logger(pl);
-        pthread_mutex_unlock(&count_mutex);
+        if (flag == 1) {
+            action_log = malloc(strlen(httplog) + strlen(action1) + 1);
+            strcpy(action_log, httplog);
+            strcat(action_log, action1);
+        } else if (flag == 0) {
+            action_log = malloc(strlen(httplog) + strlen(action2) + 1);
+            strcpy(action_log, httplog);
+            strcat(action_log, action2);
+        }
+        logger(action_log);
     }
 
     //Closing SOCKET
-    shutdown(conn, SHUT_RDWR);         //All further send and recieve operations are DISABLED...
+    shutdown(conn, SHUT_RDWR);         
     close(conn);
     free(buf);
    
@@ -281,19 +315,15 @@ int rule_update(int conn){
     return TRUE;
 }
 */
-void *test_data_logger(void *data){
+void logger(void *data){
+    pthread_mutex_lock(&count_mutex);
+
     log_file = fopen("logfile.txt","a");
     fputs((char*)data, log_file);
     fputs("\n", log_file);
     fclose(log_file);
-}
 
-char *response_ips(int flag){
-    if(flag == 1){
-        return "200 OK";
-    } else {
-        return "404 Forbidden";
-    }
+    pthread_mutex_unlock(&count_mutex);
 }
 
 const char * timelog() {
@@ -320,3 +350,40 @@ const char * timelog() {
     
     return buff;
 }
+
+
+void pipe_writer(void *data) {
+    char *msg;
+    msg = malloc(strlen((char*)data) + strlen(pid) + strlen(" ") + 1);
+    strcpy(msg, pid);
+    strcat(msg, " ");
+    strcat(msg, (char *)data);
+
+    pthread_mutex_lock(&packet_in_queue_mutex);
+    
+    packet_in_queue_fd = open(pakcet_in_queue, O_WRONLY);
+    write(packet_in_queue_fd, msg, strlen(msg));
+    close(packet_in_queue_fd);
+    
+    pthread_mutex_unlock(&packet_in_queue_mutex);
+}
+
+int pipe_reader() {
+    int packet_out_queue_fd;
+    char *form = "/tmp/packet_out_queue_";
+    char *packet_out_queue;
+    char buf[16];
+    
+    packet_out_queue = malloc(strlen(form) + strlen(pid) + 1);
+    strcpy(packet_out_queue, form);
+    strcat(packet_out_queue, pid);
+
+    packet_out_queue_fd = open(packet_out_queue, O_RDONLY);
+    read(packet_out_queue_fd, buf, 16);
+    
+    flag = atoi(&buf[0]);
+    close(packet_out_queue_fd);
+    
+    return 0;
+}
+

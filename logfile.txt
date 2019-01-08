@@ -1,1 +1,15 @@
-2018-12-04 19:19:46.796 > {"test":"test","test":"test","test":"test","test":"test","test":"test","test":"test","test":"test","test":"test","test":"test","test":"test","test":"test","test":"test","test":"test","test":"test","test":"test","test":"test"}
+, "action":"ACCEPT"}
+, "action":"ACCEPT"}
+, "action":"ACCEPT"}
+, "action":"ACCEPT"}
+, "action":"DENY"}
+, "action":"DENY"}
+, "action":"DENY"}
+, "action":"DENY"}
+, "action":"DENY"}
+2019-01-08 14:26:41.993 > {"test":"test"}, "action":"DENY"}
+2019-01-08 14:26:44.123 > {"test":"test"}, "action":"DENY"}
+2019-01-08 14:26:46.093 > {"test":"test"}, "action":"DENY"}
+2019-01-08 14:48:09.037 > {"test":"test"} >> "DENY"}
+2019-01-08 14:50:13.220 > {"test":"test"} >> "DENY"}
+2019-01-08 14:53:24.147 > {"test":"test"} >> "DENY"}

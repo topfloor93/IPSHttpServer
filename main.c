@@ -17,12 +17,14 @@ void route()
 
     ROUTE_POST("/ips")
     {
+        request_ips();
+
         printf("%s \r\n\r\n", "HTTP/1.1 200 OK"); //ALEART!! don't remove it 
         char buff[255];
         char *res = "HTTP/1.1 ";
 
         strcat(buff, res);
-        strcat(buff, response_ips(1));
+        strcat(buff, response_ips(flag));
         printf("%s \r\n", buff);
     }
 
